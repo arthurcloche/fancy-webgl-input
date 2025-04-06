@@ -33,6 +33,7 @@ const float ratio = 8./3.;
 
 
 // SDF for rounded rectangle
+// https://www.shadertoy.com/view/Nlc3zf
 float box(vec2 p, vec2 size, float radius) {
   vec2 q = abs(p) - size + radius;
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
@@ -43,6 +44,14 @@ vec3 irri(float x){
   vec3 b = vec3(0.5);
   vec3 c = vec3(1.);
   vec3 d = vec3(0.,0.334,0.667);
+  return a + b * cos( 6.28318 * ( c * x + d ));
+}
+
+vec3 palette(float x){
+  vec3 a = vec3(0.5);
+  vec3 b = vec3(0.5);
+  vec3 c = vec3(1.);
+  vec3 d = vec3(0.0,0.10,0.20);//vec3(0.5,0.20,0.25);
   return a + b * cos( 6.28318 * ( c * x + d ));
 }
 
@@ -75,12 +84,17 @@ mat2 Rot(float a) {
     return mat2(c,-s,s,c);
 }
 
+// "Cosmic Cycles" by Martijn Steinrucken aka BigWings/CountFrolic - 2020
+// License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
+// Email: countfrolic@gmail.com
+// Twitter: @The_ArtOfCode
+// YouTube: youtube.com/TheArtOfCodeIsCool
+
 float Star(vec2 uv, float a, float sparkle) {
     vec2 av1 = abs(uv);
- 	vec2 av2 = abs(uv*Rot(a));
+     vec2 av2 = abs(uv*Rot(a));
     vec2 av = min(av1, av2);
     
-    vec3 col = vec3(0);
     float d = length(uv);
     float star = av1.x*av1.y;
     star = max(av1.x*av1.y, av2.x*av2.y);
@@ -97,11 +111,11 @@ float Hash21(vec2 p) {
     return fract(p.x*p.y);
 }
 
-vec3 StarLayer(vec2 uv, float t, float sparkle, out float alpha) {
+vec3 StarLayer(vec2 uv, float t, float sparkle, float angle, out float alpha) {
     vec2 gv = fract(uv)-.5;
     vec2 id = floor(uv);
-	vec3 col = vec3(0);
-    
+    vec3 col = vec3(0);
+    // vec3 _col = vec3(0.);
     #ifndef BURST
     t = 0.;
     #endif
@@ -110,10 +124,11 @@ vec3 StarLayer(vec2 uv, float t, float sparkle, out float alpha) {
         for(int x=-1; x<=1; x++) {
             vec2 offs = vec2(x, y);
             float n = Hash21(id-offs);
-			vec3 N = fract(n*vec3(10,100,1000));
+            vec3 N = fract(n*vec3(10,100,1000));
             vec2 p = (N.xy-.5)*.7;
             float brightness = Star(gv-p+offs, n*6.2831+t, sparkle);
-            vec3 star = brightness*vec3(.6+p.x, .4, .6+p.y)*N.z*N.z;
+            vec3 _col = irri(angle+fract(uTime * .125 + length(vTexCoord-.5)));
+            vec3 star = brightness*palette(p.x*.5+.5)*N.z*N.z;//vec3(.6+p.x, .4, .6+p.y)*N.z*N.z;
             star *= 1.+sin((t+n)*20.)*smoothstep(sin(t)*.5+.5, 1., fract(10.*n));
             
             float d = length(gv+offs);
@@ -164,7 +179,7 @@ float dropShadow(float d, vec2 uv, vec2 lightDir) {
     return shadow;
 }
 
-vec4 Particles(vec2 coord) {
+vec4 Particles(vec2 coord, float angle) {
     vec2 uv = coord;
     float t = -uTime * .3;
     float alpha = 0.;
@@ -193,7 +208,7 @@ vec4 Particles(vec2 coord) {
         float fade = smoothstep(0., .4, lt) * smoothstep(1., .95, lt);
         vec2 sv = uv * scale + i * 134.53;
         float a = 0.;
-        col += StarLayer(sv, t, fade, a) * fade;
+        col += StarLayer(sv, t, fade, angle, a) * fade;
         alpha += a * fade;
         
     }
@@ -221,6 +236,19 @@ vec4 Particles(vec2 coord) {
     return vec4(col, alpha); // Return alpha as part of the vec4
 }
 
+vec4 add(vec4 src, vec4 dst, bool clamped) {
+    if (!clamped) return src + dst;
+    return clamp(src + dst, 0.0, 1.0);
+}
+
+vec4 blend(vec4 src, vec4 dst, float f) {
+    return mix(src, dst, f);
+}
+
+vec4 screen(vec4 src, vec4 dst, bool clamped) {
+    if (!clamped) return vec4(1.0) - (vec4(1.0) - src) * (vec4(1.0) - dst);
+    return clamp(vec4(1.0) - (vec4(1.0) - src) * (vec4(1.0) - dst), 0.0, 1.0);
+}
 
 void main() {
   vec2 st = vTexCoord;
@@ -238,19 +266,19 @@ void main() {
   
   float raymask = smoothstep(0.75,1., glowmask) ;
   alpha += raymask;
-  vec3 rays = godRays(st, vec2(0.5, 0.5), 0.4) * raymask; 
+  vec3 rays = godRays(st, vec2(0.5, 0.5), 0.8) * raymask; 
   
-  float glow = smoothstep(0.85,1., glowmask);
+  float glow = smoothstep(0.8,1., glowmask);
   float a = atan(st.y-.5,st.x-.5) * 1./PI;
   alpha += glow;
-  vec3 color =  glow * irri(a+fract(uTime * .125 + length(st-.5)  ));
+  vec3 color =  (glow + rays) * palette(a+fract(uTime * .025 + length(st-.5)  ));
   
   color *= sign(d) * vec3(1.);
-  color += rays * mix(1.0, 0.0, smoothstep(-0.01, 0.01, -d));
+  //color += rays * mix(1.0, 0.0, smoothstep(-0.01, 0.01, -d));
   color = mix(color, mix(color, vec3(0.0, 0.0, 0.0), shadow), step(0.0, d));
   
   vec4 debug = vec4(color, alpha);
   float particlesmask = (1.-glow)*(1.-smoothstep(0.0, .25, d));
-  vec4 particles = Particles(uv) * particlesmask;
-  fragColor = debug + particles;
+  vec4 particles = Particles(uv, a) * particlesmask;
+  fragColor = screen(debug, particles, true);
 }`;

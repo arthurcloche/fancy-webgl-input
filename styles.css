@@ -1,0 +1,98 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #333;
+  overflow: hidden;
+}
+
+.container {
+  position: relative;
+  width: 50%;
+  aspect-ratio: 8/3;
+  transition: height 0.2s ease;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1200px) {
+  .container {
+    width: 70%;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    width: 90%;
+  }
+}
+
+#gl-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.input-wrapper {
+  position: absolute;
+  top: 20%;
+  left: 10%;
+  width: 80%;
+  height: 60%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+#fancy-input {
+  width: 100%;
+  height: calc(100% - 40px); /* Leave space for button */
+  background-color: transparent;
+  border : none;
+  /* border: 1px solid #4a90e2; Temporary colored border for reference */
+  /* outline: none; */
+  padding: 15px;
+  font-size: 18px;
+  color: #fff;
+  z-index: 10;
+  font-family: sans-serif;
+  resize: none;
+  overflow-y: auto;
+  transition: height 0.2s ease;
+  min-height: calc(3em + 30px); /* 3 lines + padding */
+  max-height: calc(8em + 30px); /* 8 lines + padding */
+  line-height: 1.5;
+}
+
+#fancy-input:focus {
+  /* Just to ensure it's highlighted when focused, but with transparent background */
+  outline: none;
+}
+
+#submit-button {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  padding: 8px 15px;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  z-index: 11;
+}
+
+#submit-button:hover {
+  background-color: #3a80d2;
+} 

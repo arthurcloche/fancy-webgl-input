@@ -1,10 +1,8 @@
 // Wait for DOM to load
 document.addEventListener("DOMContentLoaded", () => {
   const canvas = document.getElementById("gl-canvas");
-  const textarea = document.getElementById("fancy-input");
-  const submitButton = document.getElementById("submit-button");
   const container = document.querySelector(".container");
-  const inputWrapper = document.querySelector(".input-wrapper");
+  const inputWrapper = document.querySelector(".empty-container");
 
   // Initialize WebGL2
   const gl = canvas.getContext("webgl2", { alpha: true });
@@ -12,76 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("WebGL2 not supported");
     return;
   }
-
-  // Auto-growing textarea functionality
-  function adjustTextareaHeight() {
-    // Reset height to auto to get the correct scrollHeight
-    textarea.style.height = "auto";
-
-    // Calculate new height based on content
-    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight);
-    const paddingTop = parseFloat(getComputedStyle(textarea).paddingTop);
-    const paddingBottom = parseFloat(getComputedStyle(textarea).paddingBottom);
-    const minLines = 3;
-    const maxLines = 8;
-
-    // Calculate current lines of text
-    const scrollHeight = textarea.scrollHeight;
-    const textareaHeight = scrollHeight;
-    const minHeight = lineHeight * minLines + paddingTop + paddingBottom;
-    const maxHeight = lineHeight * maxLines + paddingTop + paddingBottom;
-
-    // Apply height constraints
-    let newHeight = Math.max(minHeight, Math.min(textareaHeight, maxHeight));
-    textarea.style.height = `${newHeight}px`;
-
-    // Adjust container height proportionally if needed
-    if (newHeight > minHeight) {
-      // Calculate how much the textarea grew
-      const growthFactor = newHeight / minHeight;
-
-      // Get original container dimensions
-      const originalAspectRatio = 8 / 3;
-      const containerWidth = container.clientWidth;
-
-      // Adjust container height based on textarea growth
-      // and maintain the original width
-      const newContainerHeight =
-        (containerWidth / originalAspectRatio) * growthFactor;
-      container.style.height = `${newContainerHeight}px`;
-      container.style.aspectRatio = "auto"; // Override the aspect-ratio temporarily
-    } else {
-      // Reset to original aspect ratio
-      container.style.height = "auto";
-      container.style.aspectRatio = "8/3";
-    }
-
-    // Trigger resize for WebGL
-    handleResize();
-  }
-
-  // Listen for input events to adjust height
-  textarea.addEventListener("input", adjustTextareaHeight);
-
-  // Submit button event listener
-  submitButton.addEventListener("click", () => {
-    const text = textarea.value.trim();
-    if (text) {
-      console.log("Submitted:", text);
-      // Add your submission logic here
-    }
-  });
-
-  // Also submit on Enter key (without shift)
-  textarea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      submitButton.click();
-    }
-  });
-
-  // Initialize textarea height
-  setTimeout(adjustTextareaHeight, 0);
 
   // Compile shaders
   const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
@@ -197,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     gl.bindVertexArray(vao);
 
     // Get input element dimensions relative to canvas
-    const inputRect = textarea.getBoundingClientRect();
+    const inputRect = inputWrapper.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
 
     // Get the pixel ratio
@@ -231,15 +159,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // Start animation
   animate();
 
-  // Replace the initial render with animation start
-  // handleResize(); // replaced with animate();
-
   // Handle window resize
   window.addEventListener("resize", handleResize);
-
-  // Re-render on input focus/blur to update visual state
-  textarea.addEventListener("focus", render);
-  textarea.addEventListener("blur", render);
 });
 
 // Helper function to create shader

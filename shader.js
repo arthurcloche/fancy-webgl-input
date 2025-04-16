@@ -29,8 +29,6 @@ const float margins = 0.2;
 const float ratio = 8./3.;
 
 
-#define NUM_LAYERS 5.
-
 
 // SDF for rounded rectangle
 // https://www.shadertoy.com/view/Nlc3zf
@@ -44,14 +42,6 @@ vec3 irri(float x){
   vec3 b = vec3(0.5);
   vec3 c = vec3(1.);
   vec3 d = vec3(0.,0.334,0.667);
-  return a + b * cos( 6.28318 * ( c * x + d ));
-}
-
-vec3 palette(float x){
-  vec3 a = vec3(0.5);
-  vec3 b = vec3(0.5);
-  vec3 c = vec3(1.);
-  vec3 d = vec3(0.0,0.10,0.20);//vec3(0.5,0.20,0.25);
   return a + b * cos( 6.28318 * ( c * x + d ));
 }
 
@@ -77,18 +67,155 @@ float hash13(vec3 p3)
     return fract((p3.x + p3.y) * p3.z);
 }
 
-#define NUM_LAYERS 5.
+#define NUM_LAYERS 3.
 
 mat2 Rot(float a) {
     float s=sin(a), c=cos(a);
     return mat2(c,-s,s,c);
 }
 
-// "Cosmic Cycles" by Martijn Steinrucken aka BigWings/CountFrolic - 2020
-// License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
-// Email: countfrolic@gmail.com
-// Twitter: @The_ArtOfCode
-// YouTube: youtube.com/TheArtOfCodeIsCool
+float Hash21(vec2 p) {
+    p = fract(p*vec2(123.34,145.54));
+    p += dot(p, p+45.23);
+    return fract(p.x*p.y);
+}
+
+#define T uTime
+#define R uResolution.xy
+
+
+vec3 palette(float x){
+  vec3 purple = vec3(0.45, 0.07, 0.61);
+  vec3 light = vec3(.36, 0.12, 0.93);
+  return mix(purple, light, x);
+}
+
+vec2 globalPos(vec2 pos){
+    vec2 mover = vec2(cos(T)*.25,sin(T)*.125);
+    return pos-mover + hash12(gl_FragCoord.xy + T * 0.1)*.0125;
+}
+
+float circle(vec2 pos,float lo, float hi){
+    return smoothstep(lo,hi,length(globalPos(pos)));
+}
+
+// vec3 dispersive(vec3 color, vec2 pos, float lambert){
+
+//     float ior = refractIndex;
+//     float rd = 1.-circle(pos - ior/R.x,0.05,.25 + lambert * .025);
+//     float r = gradient(rd).r;
+//     float rg = 1.-circle(pos,0.05,.25 + lambert * .025);
+//     float g = gradient(rd).g;
+//     float bd = 1.-circle(pos + ior/R.x,0.05,.25 + lambert * .025);
+//     float b = gradient(rd).b;
+
+//     return vec3(r,g,b);
+// }
+
+vec3 normals(vec2 uv, vec2 size, float radius) {
+  float d = box(uv, size, radius);
+  float smoothFactor = .85; // Controls the smoothness of the normals
+  float dx = dFdx(d);
+  float dy = dFdy(d);
+  // Reduce the impact of the depth component for softer edges
+  float dz = d * (1.0 - smoothFactor);
+  
+  return normalize(vec3(dx, dy, dz));
+}
+
+float map(float val, float inA, float inB, float outA, float outB) {
+  return (val - inA) / (inB - inA) * (outB - outA) + outA;
+}
+
+float fresnel(vec3 direction, vec3 normal, float power, bool invert) {
+    vec3 halfDirection = normalize( normal + direction );
+    float cosine = dot( halfDirection, direction );
+    float product = max( cosine, 0.0 );
+    float factor = invert ? 1.0 - pow( product, power ) : pow( product, power );
+    return factor;
+}
+vec4 remapShadows(vec4 color) {
+  float factor = 12.;
+  return vec4(
+    pow(color.x, factor),
+    pow(color.y, factor),
+    pow(color.z, factor),
+    color.w
+  );
+}
+
+float ease(float t, float power) {
+    if (t < 0.5) {
+        return 0.5 * pow(2.0 * t, power);
+    } else {
+        return 1.0 - 0.5 * pow(2.0 * (1.0 - t), power);
+    }
+}
+
+
+float noise( vec2 co ){
+    return fract( sin( dot( co.xy, vec2( 12.9898, 78.233 ) ) ) * 43758.5453 );
+}
+
+vec4 Particles2( in vec2 uv )
+{
+	
+    float u_brightness = 1.2;
+    float u_blobiness = 1.0;
+    float u_particles = 10.0;
+
+    float u_limit = 10.0;
+
+    float u_energy = 1.0 * 0.75;
+
+    vec2 position = uv * 0.33;
+    float t = (T*0.5+100.) * u_energy;
+    
+    float a = 0.0;
+    float b = 0.0;
+    float c = 0.0;
+
+    vec2 pos;
+    vec2 center = vec2( 0,0 );
+
+    float na, nb, nc, nd, d;
+    float limit = u_particles / u_limit;
+    float step = 1.0 / u_particles;
+    float n = 0.0;
+    
+    for ( float i = 0.0; i <= 1.0; i += 0.025 ) {
+
+        if ( i <= limit ) {
+
+            vec2 np = vec2(n, 0.);
+
+            
+            na = noise( np * 1.1 );
+            nb = noise( np * 2.8 );
+            nc = noise( np * 0.7 );
+            nd = noise( np * 3.2 );
+
+            pos = center;
+            pos.x += sin(t*na) * cos(t*nb) * tan(t*na*0.15) * 0.3;
+            pos.y += tan(t*nc) * sin(t*nd) * 0.1;
+            
+            d = pow( 1.6*na / length( pos - position ), u_blobiness );
+            
+            if ( i < limit * 0.3333 ) a += d;
+            else if ( i < limit * 0.5 ) b += d;
+            else c += d;
+
+
+            n += step;
+        }
+    }
+
+
+    vec3 col = vec3(a*25.5,0.0,a*b) * 0.0001 * u_brightness;    
+    return vec4( col, u_brightness );
+    
+
+}
 
 float Star(vec2 uv, float a, float sparkle) {
     vec2 av1 = abs(uv);
@@ -103,12 +230,6 @@ float Star(vec2 uv, float a, float sparkle) {
     float m = min(5., 1e-2/d);
     
     return m+pow(star, 4.)*sparkle;
-}
-
-float Hash21(vec2 p) {
-    p = fract(p*vec2(123.34,145.54));
-    p += dot(p, p+45.23);
-    return fract(p.x*p.y);
 }
 
 vec3 StarLayer(vec2 uv, float t, float sparkle, float angle, out float alpha) {
@@ -140,44 +261,6 @@ vec3 StarLayer(vec2 uv, float t, float sparkle, float angle, out float alpha) {
     return col;
 }
 
-// Function to create radial god rays
-vec3 godRays(vec2 uv, vec2 pos, float intensity) {
-    vec2 delta = uv - pos;
-    float angle = atan(delta.y, delta.x);
-    float dist = length(delta);
-    
-    // Create radial rays
-    float rays = 0.5 + 0.5 * sin(angle * 12.0 + uTime * 0.5);
-    rays = pow(rays, 2.0) * intensity;
-    
-    // Fade based on distance
-    rays *= smoothstep(1.2, 0.2, dist);
-    
-    // Add some noise to make it more natural
-    rays *= 0.8 + 0.2 * hash12(uv * 40.0 + uTime);
-    
-    return vec3(rays) * mix(
-        vec3(1.0, 0.8, 0.4),  // Warm color
-        vec3(0.6, 0.8, 1.0),  // Cool color
-        sin(uTime * 0.1) * 0.5 + 0.5
-    );
-}
-
-// Function to create drop shadow
-float dropShadow(float d, vec2 uv, vec2 lightDir) {
-    // Make shadow offset in the opposite direction of light
-    vec2 shadowOffset = -lightDir * 0.01;
-    float shadowDist = box(uv + shadowOffset, vec2(0.4 * ratio, 0.3), uCornerRadius);
-    
-    // Create shadow only for the shape
-    float shadow = smoothstep(-0.1, 0.1, shadowDist);
-    shadow = max(0.0, 1.0 - shadow);
-    
-    // Soften shadow
-    shadow *= 0.5;
-    
-    return shadow;
-}
 
 vec4 Particles(vec2 coord, float angle) {
     vec2 uv = coord;
@@ -196,7 +279,7 @@ vec4 Particles(vec2 coord, float angle) {
     float d = dot(uv, uv);
     float a = atan(uv.x, uv.y);
     uv /= d;
-    float burst = sin(iTime * .05);
+    float burst = sin(uTime * .05);
     uv *= burst + .2;
     #endif
 
@@ -236,19 +319,28 @@ vec4 Particles(vec2 coord, float angle) {
     return vec4(col, alpha); // Return alpha as part of the vec4
 }
 
-vec4 add(vec4 src, vec4 dst, bool clamped) {
-    if (!clamped) return src + dst;
-    return clamp(src + dst, 0.0, 1.0);
+vec4 Breath( in vec2 uv )
+{
+
+    float dMask = 1.0 - length(uv);
+    dMask = smoothstep(0.25, 1.0, clamp(dMask, 0.0, 1.0)) * pow(abs(sin(T * 0.888) * 1.5), 3.0);
+    vec3 col = 0.5 + 0.5*cos(T * 1.0123 + uv.xyx + vec3(0,2,4));
+    return vec4(col * dMask,1.0);
 }
 
-vec4 blend(vec4 src, vec4 dst, float f) {
-    return mix(src, dst, f);
+vec3 fakeReflection(vec2 uv, vec2 size, float time) {
+  vec2 reflPos = uv * 2.0;
+  float loop = mod(T, 60.0) * PI * 2.0 / 60.0; // Ensure loop completes every 60 seconds
+  float moveX = loop * R.x * 0.01;
+  float moveY = loop * R.y * 0.01;
+  float sweep = sin(reflPos.x + reflPos.y + moveX - moveY + loop) * 0.5 + 0.5;
+  float edgeFactor = smoothstep(0.0, 0.8, length(reflPos) / length(size));
+  float refl = pow(sweep, 3.0) * 0.3;
+  float refl2 = pow(sin(reflPos.y * 0.5 - loop) * 0.5 + 0.5, 5.0) * 0.25;
+  return vec3(refl);
 }
 
-vec4 screen(vec4 src, vec4 dst, bool clamped) {
-    if (!clamped) return vec4(1.0) - (vec4(1.0) - src) * (vec4(1.0) - dst);
-    return clamp(vec4(1.0) - (vec4(1.0) - src) * (vec4(1.0) - dst), 0.0, 1.0);
-}
+const vec3 rd = vec3(0.0, 0.0, -1.0);
 
 void main() {
   vec2 st = vTexCoord;
@@ -257,28 +349,37 @@ void main() {
   float alpha = 0.;
   vec2 halfSize = vec2(0.4 * ratio, 0.3);
   float d = box(uv, halfSize, uCornerRadius);
-  float ddxy = fwidth(max(uResolution.x, uResolution.y));
-  float rectmask = smoothstep(0.5-ddxy, 0.5 + ddxy, d);
+  float ddxy = fwidth(d);
+  float rectmask = smoothstep(0.0, ddxy, d);
+  
   float glowmask = 0.95 * (1.-d) + hash12(vec2(gl_FragCoord.xy * 1024. + uTime) ) * 0.025;
-  
-  vec2 lightDir = normalize(vec2(0.2, 0.7)); // Light coming from top-right
-  float shadow = dropShadow(d, uv, lightDir);
-  
-  float raymask = smoothstep(0.75,1., glowmask) ;
-  alpha += raymask;
-  vec3 rays = godRays(st, vec2(0.5, 0.5), 0.8) * raymask; 
-  
   float glow = smoothstep(0.8,1., glowmask);
-  float a = atan(st.y-.5,st.x-.5) * 1./PI;
+  vec3 glowColor = (glow) * palette(sin(PI*4.+uTime * 0.5)*.5+.5);
+  
+  vec3 render = glowColor + vec3(1.-rectmask);
+  vec3 n = normals(uv, halfSize, uCornerRadius);
+  float g = 1.0 - abs(n.z);
+  g = g * 0.8 / (g * 0.8 - g + 1.0);
+  float glass = 1.-((1.0 - 0.4 * g));
+  
+  // Add the fake reflection effect - only within the glass area
+  vec3 reflection = fakeReflection(uv, halfSize, uTime)*1.5;
+  float reflMask = 1.0 - rectmask; // Only apply to the glass area
+  
+  // Combine glass with reflection
+  render = vec3(glass * 0.75) + reflection * reflMask;
+  
   alpha += glow;
-  vec3 color =  (glow + rays) * palette(a+fract(uTime * .025 + length(st-.5)  ));
+  vec4 particles = Particles(uv, 0.);
+  render += particles.rgb * reflection * reflMask;
+  alpha += particles.a * reflMask;
+
+  render += Breath(uv * .5).rgb * (1.-reflMask) * 0.25;
+  render += Breath(uv).rgb  * reflection * reflMask * 0.1;
+
+
+  fragColor = vec4(render,alpha);
   
-  color *= sign(d) * vec3(1.);
-  //color += rays * mix(1.0, 0.0, smoothstep(-0.01, 0.01, -d));
-  color = mix(color, mix(color, vec3(0.0, 0.0, 0.0), shadow), step(0.0, d));
-  
-  vec4 debug = vec4(color, alpha);
-  float particlesmask = (1.-glow)*(1.-smoothstep(0.0, .25, d));
-  vec4 particles = Particles(uv, a) * particlesmask;
-  fragColor = screen(debug, particles, true);
+
+    
 }`;

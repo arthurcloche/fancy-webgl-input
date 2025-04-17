@@ -371,8 +371,12 @@ void main() {
   
   alpha += glow;
   vec4 particles = Particles(uv, 0.);
-  render += particles.rgb * reflection * reflMask;
-  alpha += particles.a * reflMask;
+  render = particles.rgb * reflection * reflMask;
+  render += reflection * reflMask;
+  render += glass;
+
+  alpha = particles.a * reflMask * reflection.x;
+  alpha += glass;
 
   render += Breath(uv * .5).rgb * (1.-reflMask) * 0.25;
   render += Breath(uv).rgb  * reflection * reflMask * 0.1;

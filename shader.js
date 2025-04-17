@@ -363,7 +363,7 @@ void main() {
   float glass = 1.-((1.0 - 0.4 * g));
   
   // Add the fake reflection effect - only within the glass area
-  vec3 reflection = fakeReflection(uv, halfSize, uTime)*1.5;
+  vec3 reflection = fakeReflection(uv, halfSize, uTime)*2.5;
   float reflMask = 1.0 - rectmask; // Only apply to the glass area
   
   // Combine glass with reflection
@@ -373,7 +373,7 @@ void main() {
   vec4 particles = Particles(uv, 0.);
   render = particles.rgb * reflection * reflMask;
   render += reflection * reflMask;
-  render += glass;
+  render += glass * 2.;
 
   alpha = particles.a * reflMask * reflection.x;
   alpha += glass;

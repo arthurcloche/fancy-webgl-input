@@ -352,8 +352,17 @@ void main() {
   float ddxy = fwidth(d);
   float rectmask = smoothstep(0.0, ddxy, d);
   
+  float shadowOffset = -0.02; // Offset for the shadow
+  float shadowBlur = 0.25; // Blur amount for the shadow
+  vec2 shadowUV = uv + vec2(0., -shadowOffset); // Offset the UV for shadow
+  float shadowD = box(shadowUV, vec2(0.4 * ratio, 0.3), uCornerRadius); // Calculate distance for shadow
+  float shadowMask = smoothstep(-.25, shadowBlur, d); // Create shadow mask
+  vec3 shadowColor = vec3(0.0, 0.0, 0.0); // Shadow color (black)
+  
+
+
   float glowmask = 0.95 * (1.-d) + hash12(vec2(gl_FragCoord.xy * 1024. + uTime) ) * 0.025;
-  float glow = smoothstep(0.8,1., glowmask);
+  float glow = smoothstep(0.8,.9, glowmask);
   vec3 glowColor = (glow) * palette(sin(PI*4.+uTime * 0.5)*.5+.5);
   
   vec3 render = glowColor + vec3(1.-rectmask);
@@ -362,25 +371,29 @@ void main() {
   g = g * 0.8 / (g * 0.8 - g + 1.0);
   float glass = 1.-((1.0 - 0.4 * g));
   
-  // Add the fake reflection effect - only within the glass area
-  vec3 reflection = fakeReflection(uv, halfSize, uTime)*2.5;
-  float reflMask = 1.0 - rectmask; // Only apply to the glass area
   
-  // Combine glass with reflection
+  vec3 reflection = fakeReflection(uv, halfSize, uTime)*2.5;
+  float reflMask = 1.0 - rectmask; 
   render = vec3(glass * 0.75) + reflection * reflMask;
   
-  alpha += glow;
   vec4 particles = Particles(uv, 0.);
   render = particles.rgb * reflection * reflMask;
   render += reflection * reflMask;
   render += glass * 2.;
 
+//   
+  
+  float _alpha = ((1.0 - shadowMask) * 1.) * (sign(d) * .5 +.5) * .25;
   alpha = particles.a * reflMask * reflection.x;
-  alpha += glass;
-
-  render += Breath(uv * .5).rgb * (1.-reflMask) * 0.25;
+  alpha += glass * 2.;
+  alpha += _alpha * 1.;
+  
+  render += Breath(uv *vec2(.4, 1.25)).rgb * (1.-reflMask) * 0.25;
   render += Breath(uv).rgb  * reflection * reflMask * 0.1;
-
+  //render += shadowColor * .025 * (1.0 - shadowMask);
+   // Add shadow to alpha
+  
+    
 
   fragColor = vec4(render,alpha);
   

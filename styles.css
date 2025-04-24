@@ -10,8 +10,8 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #333;
-  background-image: url('src/bg.jpg');
+  background-color: #eee;
+  /* background-image: url('src/bg.jpg'); */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -20,6 +20,9 @@ body {
 
 .container {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 50%;
   aspect-ratio: 8/3;
   transition: height 0.2s ease;
@@ -48,6 +51,9 @@ body {
 }
 
 .empty-container {
+  position: relative;
+  width: 80%;
+  height:100%;
   background-color: transparent;
   pointer-events: none;
 }
